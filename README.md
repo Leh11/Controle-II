@@ -1,2 +1,1 @@
-# control-tank2
-### Controlador RST posicional.
+# can - control
