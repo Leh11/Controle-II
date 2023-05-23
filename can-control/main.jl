@@ -1,23 +1,56 @@
 include("server_base.jl")
-include("aux_params.jl")
-include("service.jl")
+include("params.jl")
+include("services.jl")
 
 Base.@kwdef mutable struct Control
-    time::Float32 = 0.0 
-    Δ::Float32 = 0.03
+    controlSignal = 0.0;
+    Δ::Float32 = 0.01;
+    time::Float32 = 0.0;
+    rec_sig::Float32 = 0.0;
+    rec_dist::Float32 = 0.0;
+    
+    check_signal = (signal, obj_ps) -> (
+        rec_dist += Δ;
+        d = modl(obj_ps);
+        signal = round(signal, digits=2);
+        if rec_sig == signal
+            time += 1
+        else
+            time = 0           
+        end;
 
+        if time > 50 && d > 1
+            time = 0
+            signal = -1 * signal
+        elseif time < 50
+            signal = -0.5 * signal
+            time = 0
+        end;
+
+        rec_sig = signal;
+        return signal
+    )
+   
     step::Function = (received) -> (
-        (game, land, level, obj, target) = split_params(received);
+        #println("Received: $received");
 
-        k = map_position(land, level, [0, 0], false);
+        (game, land, level, obj_ps, tar_ps) = split_params(received);
         
-        controlSignal = saida + k * find_best(obj, target, land, level);
-        
-        if abs(controlSignal) >= 1
-            controlSignal = controlSignal / abs(controlSignal)
+        (dump, lower, upper) = get_params(land, level);
+        aux = 1 - dump;
+        controlSignal = dump * controlSignal + test_signal(land, level, obj_ps, tar_ps) * aux;
+        (controlSigna) = normalize(controlSignal, obj_ps, tar_ps, land, level);
+
+        controlSignal = check_signal(controlSignal, obj_ps);
+
+        if controlSignal >= 1
+            controlSignal = lower / controlSignal
+        elseif controlSignal <= -1
+            controlSignal = upper / controlSignal
         end;
         
-	    return controlSignal
+        #println("rec_dist: $rec_dist");
+        return (controlSignal + Δ)
     )
 end
 

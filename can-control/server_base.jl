@@ -1,7 +1,7 @@
 using Dates
 using HTTP.WebSockets
-
-Δ = 0.03
+using Base
+Δ = 0.08
 
 mutable struct Box
     received::Vector{String}
@@ -13,14 +13,16 @@ function server(control)
     received = String[]  
     controlSignal = 0.0
     WebSockets.listen("127.0.0.1", 6660) do ws
+        
         while true
+            sleep(Δ)
             try
                 values = [!isempty(x) ? parse(Float32, x) : 0.0f0 for x in received]
                 #println(values)
                 if length(values) > 0 
                     controlSignal = control.step(values)
                 end
-                println("Sending: $controlSignal") 
+                println("Send: $controlSignal") 
             
                 send(ws, string(controlSignal))
 
